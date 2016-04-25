@@ -1,0 +1,6 @@
+[package]
+name = "cdt406"
+version = "0.1.0"
+authors = ["Mitchell Hentges <mitchhentges@protonmail.com>"]
+
+[dependencies]
