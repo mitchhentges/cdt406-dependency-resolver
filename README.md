@@ -12,7 +12,7 @@ The test dependency information is output to a single `JSON` file.
 ### Tests
 
 Each top-level `key` is a test identifier. The `value` for these keys is the minimum requirements to make the
-current test fail. The `value` is either another test's ID, an [`operator`](#Operators), or `null`.
+current test fail. The `value` is either another test's ID, an [`operator`](#operators), or `null`.
 
 For example, if a test depends on another test, that means that if that test fails, then the current test will
 fail as well. So, the `value` is the ID of the test that is depended on.
@@ -24,7 +24,7 @@ fail as well. So, the `value` is the ID of the test that is depended on.
 }
 ```
 
-If a test depends on the results of another test, an [`operator`](#Operators) is used as a value:
+If a test depends on the results of another test, an [`operator`](#operators) is used as a value:
 ```
 {
  "Engine": {
