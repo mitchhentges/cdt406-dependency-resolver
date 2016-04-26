@@ -12,10 +12,10 @@
 From the following tests and results:
 |Test ID            |Execution 1|Execution 2|Execution 3|Execution 4|Execution 5|
 | ----------------- | --------- | --------- | --------- | --------- | --------- |
-|A|FAILED|FAILED|PASSED|FAILED|FAILED|
-|B|FAILED|PASSED|PASSED|PASSED|FAILED|
-|C|FAILED|FAILED|FAILED|PASSED|FAILED|
-|D|PASSED|FAILED|PASSED|FAILED|FAILED|
+|A                  |FAILED     |FAILED     |PASSED     |FAILED     |FAILED     |
+|B                  |FAILED     |PASSED     |PASSED     |PASSED     |FAILED     |
+|C                  |FAILED     |FAILED     |FAILED     |PASSED     |FAILED     |
+|D                  |PASSED     |FAILED     |PASSED     |FAILED     |FAILED     |
 
 ```
 {
