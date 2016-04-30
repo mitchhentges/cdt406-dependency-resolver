@@ -1,4 +1,4 @@
-pub fn return_string() -> &str {
+pub fn return_string() -> &'static str {
     return "bork";
 }
 
@@ -12,7 +12,7 @@ mod tests {
 
     #[test]
     fn string_is_bork() {
-        let s = "bork";//return_string();
+        let s = return_string();
         assert_eq!("bork", s);
     }
 }
