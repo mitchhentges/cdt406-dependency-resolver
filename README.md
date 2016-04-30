@@ -1,5 +1,7 @@
 # Dependency Resolver
 
+[![Build Status](https://travis-ci.org/mitchhentges/cdt406-dependency-resolver.svg?branch=master)](https://travis-ci.org/mitchhentges/cdt406-dependency-resolver/)
+
 ## Building
 
 1. Install [Rust](https://www.rust-lang.org/)
