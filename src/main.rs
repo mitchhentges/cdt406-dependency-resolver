@@ -1,9 +1,28 @@
+mod test_results;
+
 pub fn return_string() -> &'static str {
     return "bork";
 }
 
+fn use_array(tests: &[&[bool]]) {
+    println!("Bork: {:?} [3][4]{}", tests, tests[3][2]);
+    println!("Length: {}", tests.len());
+    /*for bork in tests {
+        println!("borking");
+        for bap in bork {
+            //println!("tests[bork][bap]: {}", bap);
+        }
+    }*/
+}
+
 fn main() {
-    println!("{}", return_string());
+    let source = test_results::CsvTestSource { filename: "name" };
+    let s: &[&[bool]] = &[&[true, false, true],
+            &[false, false, false],
+            &[false, false, false],
+            &[false, true, true]];
+    use_array(s);
+    println!("* End of main() {:?}", s);
 }
 
 #[cfg(test)]
