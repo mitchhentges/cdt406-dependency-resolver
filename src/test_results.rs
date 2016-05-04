@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::io;
 use std::io::{BufReader, BufRead, Read};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -46,43 +47,82 @@ impl<'a> TestSource for CsvTestSource<'a> {
     }
 }
 
-pub fn parse<T: Read>(reader: BufReader<T>) -> Result<Vec<Test>, String> {
+pub fn parse<T: Read>(reader: BufReader<T>) -> Result<Vec<Test>, ParseError> {
     let mut all_results: Vec<Test> = Vec::new();
     for line in reader.lines() {
-        if line.is_err() {
-            println!("Error occurred while reading file, using input up to here");
-            println!("\t{}", line.unwrap_err().to_string());
-            break;
+        let line = try!(line);
+
+        let values: Vec<String> = line.split(',')
+            .map(|value| value.to_owned())
+            .collect();
+
+        if values.len() == 1 {
+            return Err(ParseError::NoTestExecutions);
         }
 
-        let line = line.unwrap();
-        let test_executions = line.matches(',').count(); // First chunk is the test name
-
-        if test_executions < 1 { // There's not even a single test
-            println!("No test executions for test {}", line);
-            continue;
+        if !values.iter()
+            .skip(1)
+            .map(|value| value.trim())
+            .all(|value| value == "0" || value == "1") {
+            return Err(ParseError::InvalidFormat);
         }
 
-        let test_name = line[0..line.find(',').unwrap()].to_owned();
-        let results: Vec<bool> = line.split(',')
-        .skip(1)
-        .map(|result| result == "0")
-        .collect();
-        let test = Test::new(test_name, results);
-        all_results.push(test);
+        let test_name = values[0].to_owned();
+        let executions: Vec<bool> = values.iter()
+            .skip(1)
+            .map(|result| result.trim() == "1")
+            .collect();
+
+        all_results.push(Test::new(test_name, executions));
     }
     Ok(all_results)
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ParseError {
+    Io,
+    NoTestExecutions,
+    InvalidFormat
+}
+
+impl From<io::Error> for ParseError {
+    fn from(_: io::Error) -> ParseError {
+        ParseError::Io
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{BufReader, BufRead, Read};
+    use std::io::BufReader;
+
+    fn parse_string(input: &str) -> Result<Vec<Test>, ParseError> {
+        let formatted = format!("{}\n", input);
+        let reader = BufReader::new(formatted.as_bytes());
+        parse(reader)
+    }
+
+    fn result(test_name: &str, results: &[bool]) -> Result<Vec<Test>, ParseError> {
+        Ok(vec!(Test::new(test_name.to_owned(), results.to_vec())))
+    }
 
     #[test]
-    fn bork() {
-        let reader = BufReader::new("A,0,1".as_bytes());
-        let result = parse(reader);
-        println!("{:?}", result);
+    fn should_fail_no_name_if_blank_line() {
+        assert_eq!(parse_string(""), Err(ParseError::NoTestExecutions));
+    }
+
+    #[test]
+    fn should_fail_invalid_format_if_not_1_or_0() {
+        assert_eq!(parse_string("Test name,A"), Err(ParseError::InvalidFormat));
+    }
+
+    #[test]
+    fn should_parse_valid_data() {
+        assert_eq!(parse_string("Test name,1,0,0,1"), result("Test name", &[true, false, false, true]));
+    }
+
+    #[test]
+    fn should_parse_valid_data_with_spaces() {
+        assert_eq!(parse_string("Test name,1  ,0, 0,1 "), result("Test name", &[true, false, false, true]));
     }
 }
