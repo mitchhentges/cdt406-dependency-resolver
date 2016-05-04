@@ -1,4 +1,5 @@
 mod test_results;
+use test_results::*;
 
 pub fn return_string() -> &'static str {
     return "bork";
@@ -16,12 +17,13 @@ fn use_array(tests: &[&[bool]]) {
 }
 
 fn main() {
-    let source = test_results::CsvTestSource { filename: "name" };
+    let source = CsvTestSource { filename: "name" };
     let s: &[&[bool]] = &[&[true, false, true],
             &[false, false, false],
             &[false, false, false],
             &[false, true, true]];
     use_array(s);
+    println!("{:?}", source.read_tests());
     println!("* End of main() {:?}", s);
 }
 

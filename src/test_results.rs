@@ -1,5 +1,5 @@
-trait TestSource {
-    fn read_tests<'a>() -> &'a[bool];
+pub trait TestSource {
+    fn read_tests(&self) -> Box<[Box<[bool]>]>;
 }
 
 pub struct CsvTestSource {
@@ -7,7 +7,7 @@ pub struct CsvTestSource {
 }
 
 impl TestSource for CsvTestSource {
-    fn read_tests<'a>() -> &'a[bool] {
-        &[true, false, true]
+    fn read_tests(&self) -> Box<[Box<[bool]>]> {
+        Box::new([Box::new([true]), Box::new([false])])
     }
 }
