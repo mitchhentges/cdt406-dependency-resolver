@@ -4,29 +4,30 @@ use std::io::{BufReader, BufRead, Read};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Test {
+    pub id: i32,
     pub name: String,
     pub executions: Vec<bool>,
 }
 
 impl Test {
-    pub fn new(name: String, executions: Vec<bool>) -> Test {
-        Test { name: name, executions: executions }
+    pub fn new(id: i32, name: String, executions: Vec<bool>) -> Test {
+        Test { id: id, name: name, executions: executions }
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct TestResults {
+pub struct AllTestResults {
     pub results: Vec<Test>,
 }
 
-impl TestResults {
-    pub fn new(results: Vec<Test>) -> TestResults {
-        TestResults{ results: results }
+impl AllTestResults {
+    pub fn new(results: Vec<Test>) -> AllTestResults {
+        AllTestResults{ results: results }
     }
 }
 
 pub trait TestSource {
-    fn read_tests(&self) -> Result<TestResults, String>;
+    fn read_tests(&self) -> Result<AllTestResults, String>;
 }
 
 pub struct CsvTestSource<'a> {
@@ -40,15 +41,16 @@ impl<'a> CsvTestSource<'a> {
 }
 
 impl<'a> TestSource for CsvTestSource<'a> {
-    fn read_tests(&self) -> Result<TestResults, String> {
+    fn read_tests(&self) -> Result<AllTestResults, String> {
         let file = try!(File::open(self.filename).map_err(|e| e.to_string()));
         let result = parse(BufReader::new(file));
-        Ok(TestResults::new(result.unwrap()))
+        Ok(AllTestResults::new(result.unwrap()))
     }
 }
 
 pub fn parse<T: Read>(reader: BufReader<T>) -> Result<Vec<Test>, ParseError> {
     let mut all_results: Vec<Test> = Vec::new();
+    let mut next_test_id = 0;
     for line in reader.lines() {
         let line = try!(line);
 
@@ -73,7 +75,8 @@ pub fn parse<T: Read>(reader: BufReader<T>) -> Result<Vec<Test>, ParseError> {
             .map(|result| result.trim() == "1")
             .collect();
 
-        all_results.push(Test::new(test_name, executions));
+        all_results.push(Test::new(next_test_id, test_name, executions));
+        next_test_id += 1;
     }
     Ok(all_results)
 }
@@ -103,7 +106,11 @@ mod tests {
     }
 
     fn result(test_name: &str, results: &[bool]) -> Result<Vec<Test>, ParseError> {
-        Ok(vec!(Test::new(test_name.to_owned(), results.to_vec())))
+        Ok(vec!(test_history(test_name, 0, results)))
+    }
+
+    fn test_history(test_name: &str, id: i32, results: &[bool]) -> Test {
+        Test::new(id, test_name.to_owned(), results.to_vec())
     }
 
     #[test]
@@ -124,5 +131,13 @@ mod tests {
     #[test]
     fn should_parse_valid_data_with_spaces() {
         assert_eq!(parse_string("Test name,1  ,0, 0,1 "), result("Test name", &[true, false, false, true]));
+    }
+
+    #[test]
+    fn should_assign_increasing_test_id() {
+        assert_eq!(parse_string("A,1,0\nB,0,0"), Ok(vec!(
+            test_history("A", 0, &[true, false]),
+            test_history("B", 1, &[false, false])
+        )));
     }
 }
