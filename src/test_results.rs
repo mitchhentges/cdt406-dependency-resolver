@@ -61,7 +61,7 @@ pub fn parse<T: Read>(reader: BufReader<T>) -> Result<Vec<Test>, ParseError> {
             .collect();
 
         if values.len() == 1 {
-            return Err(ParseError::NoTestExecutions);
+            continue;
         }
 
         if !values.iter()
@@ -80,7 +80,12 @@ pub fn parse<T: Read>(reader: BufReader<T>) -> Result<Vec<Test>, ParseError> {
         all_results.push(Test::new(next_test_id, test_name, executions));
         next_test_id += 1;
     }
-    Ok(all_results)
+
+    if all_results.len() == 0 {
+        Err(ParseError::NoTestExecutions)
+    } else {
+        Ok(all_results)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -116,12 +121,13 @@ mod tests {
     }
 
     #[test]
-    fn should_fail_no_name_if_blank_line() {
-        assert_eq!(parse_string(""), Err(ParseError::NoTestExecutions));
+    fn should_fail_if_only_name() {
+        assert_eq!(parse_string("Test name"), Err(ParseError::NoTestExecutions));
     }
 
     #[test]
     fn should_fail_invalid_format_if_not_1_or_0() {
+        assert_eq!(parse_string("Test name,"), Err(ParseError::InvalidFormat));
         assert_eq!(parse_string("Test name,A"), Err(ParseError::InvalidFormat));
     }
 
@@ -141,5 +147,10 @@ mod tests {
             test_history("A", 0, &[true, false]),
             test_history("B", 1, &[false, false])
         )));
+    }
+
+    #[test]
+    fn should_ignore_empty_line() {
+        assert_eq!(parse_string("\nTest name,1"), result("Test name", &[true]));
     }
 }

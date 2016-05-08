@@ -50,25 +50,21 @@ pub fn dependency_expression(results: &[&[bool]], target_id: usize) -> TestDepen
         }
     }
 
-    let pass_expression = Expression {
-        operator: Operator::Or,
-        operands: pass_operands
-    };
-
-    let fail_expression = Expression {
-        operator: Operator::Or,
-        operands: fail_operands
-    };
-
     TestDependency {
         test_id: target_id as i32,
         dependency: Expression {
             operator: Operator::And,
             operands: vec!(
-                Operand::Expression(fail_expression),
+                Operand::Expression(Expression {
+                    operator: Operator::Or,
+                    operands: fail_operands
+                }),
                 Operand::Expression(Expression {
                     operator: Operator::Not,
-                    operands: vec!(Operand::Expression(pass_expression)),
+                    operands: vec!(Operand::Expression(Expression {
+                        operator: Operator::Or,
+                        operands: pass_operands
+                    })),
                 }),
             )
         },
@@ -78,14 +74,157 @@ pub fn dependency_expression(results: &[&[bool]], target_id: usize) -> TestDepen
 #[cfg(test)]
 mod tests {
     use super::*;
+    use expression::*;
+
+    fn dependency(expression: Expression) -> TestDependency {
+        TestDependency {
+            test_id: 0,
+            dependency: expression
+        }
+    }
 
     #[test]
-    fn should_derp() {
-        let bork = vec!(vec!(true, false, true), vec!(false, false, true));
-        let a: Vec<&[bool]> = bork.iter().map(|vec| &vec[..]).collect();
-        let test_dependencies: Vec<TestDependency> = (0..a.len())
-            .map(|i| dependency_expression(&a, i))
-            .collect();
-        println!("{:?}", test_dependencies);
+    fn should_and_operator_simultaneously_failing() {
+        let slice: &[&[bool]] = &[&[false], &[false], &[false]];
+        assert_eq!(dependency_expression(slice, 0), dependency(Expression {
+            operator: Operator::And,
+            operands: vec!(
+                Operand::Expression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!(Operand::Expression(Expression {
+                        operator: Operator::And,
+                        operands: vec!(Operand::Test(1), Operand::Test(2))
+                    }))
+                }),
+                Operand::Expression(Expression {
+                    operator: Operator::Not,
+                    operands: vec!(Operand::Expression(Expression {
+                        operator: Operator::Or,
+                        operands: vec!()
+                    }))
+                }),
+            )
+        }));
+    }
+
+    #[test]
+    fn should_or_operator_separately_failing() {
+        let slice: &[&[bool]] = &[&[false, false], &[true, false], &[false, true]];
+        assert_eq!(dependency_expression(slice, 0), dependency(Expression {
+            operator: Operator::And,
+            operands: vec!(
+                Operand::Expression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!(Operand::Expression(Expression {
+                        operator: Operator::And,
+                        operands: vec!(Operand::Test(2))
+                    }), Operand::Expression(Expression {
+                        operator: Operator::And,
+                        operands: vec!(Operand::Test(1))
+                    }))
+                }),
+                Operand::Expression(Expression {
+                    operator: Operator::Not,
+                    operands: vec!(Operand::Expression(Expression {
+                        operator: Operator::Or,
+                        operands: vec!()
+                    }))
+                }),
+            )
+        }));
+    }
+
+    #[test]
+    fn should_not_operator_with_other_test_state_for_target_pass() {
+        let slice: &[&[bool]] = &[&[true], &[false], &[false]];
+        assert_eq!(dependency_expression(slice, 0), dependency(Expression {
+            operator: Operator::And,
+            operands: vec!(
+                Operand::Expression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!()
+                }),
+                Operand::Expression(Expression {
+                    operator: Operator::Not,
+                    operands: vec!(Operand::Expression(Expression {
+                        operator: Operator::Or,
+                        operands: vec!(Operand::Expression(Expression {
+                            operator: Operator::And,
+                            operands: vec!(Operand::Test(1), Operand::Test(2))
+                        }))
+                    }))
+                }),
+            )
+        }));
+    }
+
+    #[test]
+    fn should_invert_other_passing_tests_when_target_fails() {
+        let slice: &[&[bool]] = &[&[true], &[false], &[true]];
+        assert_eq!(dependency_expression(slice, 0), dependency(Expression {
+            operator: Operator::And,
+            operands: vec!(
+                Operand::Expression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!()
+                }),
+                Operand::Expression(Expression {
+                    operator: Operator::Not,
+                    operands: vec!(Operand::Expression(Expression {
+                        operator: Operator::Or,
+                        operands: vec!(Operand::Expression(Expression {
+                            operator: Operator::And,
+                            operands: vec!(Operand::Test(1), Operand::InverseTest(2))
+                        }))
+                    }))
+                }),
+            )
+        }));
+    }
+
+    #[test]
+    fn should_work_with_more_complex_example() {
+        let slice: &[&[bool]] = &[
+            &[false, false, true, false, false],
+            &[false, true, true, true, false],
+            &[false, false, false, true, false],
+            &[true, false, true, false, false]
+        ];
+
+        assert_eq!(dependency_expression(slice, 0), dependency(Expression {
+            operator: Operator::And,
+            operands: vec!(
+                Operand::Expression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!(Operand::Expression(Expression {
+                        operator: Operator::And,
+                        operands: vec!(Operand::Test(1), Operand::Test(2))
+                    }),Operand::Expression(Expression {
+                        operator: Operator::And,
+                        operands: vec!(Operand::Test(2), Operand::Test(3))
+                    }),Operand::Expression(Expression {
+                        operator: Operator::And,
+                        operands: vec!(Operand::Test(3))
+                    }),Operand::Expression(Expression {
+                        operator: Operator::And,
+                        operands: vec!(Operand::Test(1), Operand::Test(2), Operand::Test(3))
+                    }),)
+                }),
+                Operand::Expression(Expression {
+                    operator: Operator::Not,
+                    operands: vec!(Operand::Expression(Expression {
+                        operator: Operator::Or,
+                        operands: vec!(Operand::Expression(Expression {
+                            operator: Operator::And,
+                            operands: vec!(
+                                Operand::InverseTest(1),
+                                Operand::Test(2),
+                                Operand::InverseTest(3),
+                            )
+                        }))
+                    }))
+                }),
+            )
+        }));
     }
 }
