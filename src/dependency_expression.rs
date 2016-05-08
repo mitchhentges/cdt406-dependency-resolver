@@ -13,19 +13,22 @@ pub fn dependency_expression(results: &[&[bool]], target_id: usize) -> TestDepen
     let mut pass_operands = Vec::<Operand>::with_capacity(executions); // maximum of all passes
     let mut fail_operands = Vec::<Operand>::with_capacity(executions); // or all fails
     for execution_index in 0..executions {
-        let passed: bool = results[target_id][execution_index];
+        let passed = results[target_id][execution_index];
 
         let mut execution_operands = Vec::<Operand>::with_capacity(test_count - 1); // Don't count target test
         for other_id in 0..test_count {
-            let other_id = other_id as i32;
-            let operand = match passed {
-                false => Some(Operand::Test(other_id )),
+            if other_id == target_id {
+                continue;
+            }
+
+            let operand = match results[other_id][execution_index] {
+                false => Some(Operand::Test(other_id as i32)),
                 true => {
                     if !passed {
                         // Don't care about other passed tests if the target failed
                         None
                     } else {
-                        Some(Operand::InverseTest(other_id))
+                        Some(Operand::InverseTest(other_id as i32))
                     }
                 }
             };
@@ -80,7 +83,9 @@ mod tests {
     fn should_derp() {
         let bork = vec!(vec!(true, false, true), vec!(false, false, true));
         let a: Vec<&[bool]> = bork.iter().map(|vec| &vec[..]).collect();
-        let b: Vec<TestDependency> = (0..3).map(|i| dependency_expression(&a, i)).collect();
-        println!("{:?}", b);
+        let test_dependencies: Vec<TestDependency> = (0..a.len())
+            .map(|i| dependency_expression(&a, i))
+            .collect();
+        println!("{:?}", test_dependencies);
     }
 }

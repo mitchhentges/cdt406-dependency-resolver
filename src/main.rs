@@ -24,6 +24,6 @@ fn main() {
     let test_dependencies: Vec<TestDependency> = (0..tests.count)
         .map(|i| dependency_expression(&tests_slices, i))
         .collect();
-    println!("{:?}", test_dependencies);
+    println!("{:?}", test_dependencies[0]);
     println!("Done!");
 }
