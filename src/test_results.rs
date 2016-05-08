@@ -18,11 +18,13 @@ impl Test {
 #[derive(Debug, PartialEq, Eq)]
 pub struct AllTestResults {
     pub results: Vec<Test>,
+    pub count: usize,
 }
 
 impl AllTestResults {
     pub fn new(results: Vec<Test>) -> AllTestResults {
-        AllTestResults{ results: results }
+        let count = results.len();
+        AllTestResults{ results: results, count: count }
     }
 }
 
