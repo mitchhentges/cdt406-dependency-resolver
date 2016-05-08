@@ -59,12 +59,9 @@ pub fn dependency_expression(results: &[&[bool]], target_id: usize) -> TestDepen
                     operator: Operator::Or,
                     operands: fail_operands
                 }),
-                Operand::Expression(Expression {
-                    operator: Operator::Not,
-                    operands: vec!(Operand::Expression(Expression {
-                        operator: Operator::Or,
-                        operands: pass_operands
-                    })),
+                Operand::InverseExpression(Expression {
+                    operator: Operator::Or,
+                    operands: pass_operands
                 }),
             )
         },
@@ -96,12 +93,9 @@ mod tests {
                         operands: vec!(Operand::Test(1), Operand::Test(2))
                     }))
                 }),
-                Operand::Expression(Expression {
-                    operator: Operator::Not,
-                    operands: vec!(Operand::Expression(Expression {
-                        operator: Operator::Or,
-                        operands: vec!()
-                    }))
+                Operand::InverseExpression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!()
                 }),
             )
         }));
@@ -123,12 +117,9 @@ mod tests {
                         operands: vec!(Operand::Test(1))
                     }))
                 }),
-                Operand::Expression(Expression {
-                    operator: Operator::Not,
-                    operands: vec!(Operand::Expression(Expression {
-                        operator: Operator::Or,
-                        operands: vec!()
-                    }))
+                Operand::InverseExpression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!()
                 }),
             )
         }));
@@ -144,14 +135,11 @@ mod tests {
                     operator: Operator::Or,
                     operands: vec!()
                 }),
-                Operand::Expression(Expression {
-                    operator: Operator::Not,
+                Operand::InverseExpression(Expression {
+                    operator: Operator::Or,
                     operands: vec!(Operand::Expression(Expression {
-                        operator: Operator::Or,
-                        operands: vec!(Operand::Expression(Expression {
-                            operator: Operator::And,
-                            operands: vec!(Operand::Test(1), Operand::Test(2))
-                        }))
+                        operator: Operator::And,
+                        operands: vec!(Operand::Test(1), Operand::Test(2))
                     }))
                 }),
             )
@@ -168,14 +156,11 @@ mod tests {
                     operator: Operator::Or,
                     operands: vec!()
                 }),
-                Operand::Expression(Expression {
-                    operator: Operator::Not,
+                Operand::InverseExpression(Expression {
+                    operator: Operator::Or,
                     operands: vec!(Operand::Expression(Expression {
-                        operator: Operator::Or,
-                        operands: vec!(Operand::Expression(Expression {
-                            operator: Operator::And,
-                            operands: vec!(Operand::Test(1), Operand::InverseTest(2))
-                        }))
+                        operator: Operator::And,
+                        operands: vec!(Operand::Test(1), Operand::InverseTest(2))
                     }))
                 }),
             )
@@ -210,18 +195,15 @@ mod tests {
                         operands: vec!(Operand::Test(1), Operand::Test(2), Operand::Test(3))
                     }),)
                 }),
-                Operand::Expression(Expression {
-                    operator: Operator::Not,
+                Operand::InverseExpression(Expression {
+                    operator: Operator::Or,
                     operands: vec!(Operand::Expression(Expression {
-                        operator: Operator::Or,
-                        operands: vec!(Operand::Expression(Expression {
-                            operator: Operator::And,
-                            operands: vec!(
-                                Operand::InverseTest(1),
-                                Operand::Test(2),
-                                Operand::InverseTest(3),
-                            )
-                        }))
+                        operator: Operator::And,
+                        operands: vec!(
+                            Operand::InverseTest(1),
+                            Operand::Test(2),
+                            Operand::InverseTest(3),
+                        )
                     }))
                 }),
             )
