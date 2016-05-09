@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use expression::*;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 enum State {
     False,
     True,
@@ -9,15 +9,77 @@ enum State {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-struct QM_Item {
+struct AllQMSteps {
+    steps: Vec<Vec<QMStepRow>>
+}
+
+impl AllQMSteps {
+    fn new(steps_len: usize) -> AllQMSteps {
+        let mut steps = Vec::<Vec<QMStepRow>>::with_capacity(steps_len);
+
+        for _ in 0..steps_len {
+            steps.push(Vec::<QMStepRow>::new())
+        }
+        AllQMSteps { steps: steps }
+    }
+
+    fn is_empty(&self) -> bool {
+        !self.steps.iter().any(|rows| !rows.is_empty())
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct QMStepRow {
     row: Vec<State>,
     one_count: usize,
     used: bool,
-    covered_rows: Vec<usize>, //index of rows covered in original truth table
+    covered_rows: HashSet<usize>, //index of rows covered in original truth table
 }
 
+impl QMStepRow {
+    fn reduce(&self, other: &QMStepRow) -> Option<QMStepRow> {
+        let mut diff_column: i32 = -1;
+
+        for i in 0..self.row.len() {
+            if self.row[i] != other.row[i] {
+                if diff_column != -1 { // More than two columns different
+                    return None;
+                }
+
+                diff_column = i as i32;
+            }
+        }
+
+        if diff_column == -1 { // More than two columns different
+            return None;
+        }
+
+        let mut row = self.row.clone();
+        row[diff_column as usize] = State::Used;
+        let mut covered_rows = self.covered_rows.clone();
+        covered_rows.extend(other.covered_rows.clone());
+
+        let mut one_count = 0;
+        for i in &row {
+            if i == &State::True {
+                one_count += 1;
+            }
+        }
+
+        Some(QMStepRow {
+            row: row,
+            one_count: one_count,
+            used: false,
+            covered_rows: covered_rows,
+        })
+    }
+}
+
+// Things got messy here. Operation "Get this project done" kicked into overdrive, and maintaining
+// a nice, testable structure became low-priority
 pub fn reduce(expression: &Expression) -> Expression {
     let variables = expression.variables();
+    let steps_len = variables.len() + 1;
     let mut target_index = variables.len();
     for i in 0..(variables.len() + 1) {
         if !variables.contains(&(i as i32)) {
@@ -27,12 +89,7 @@ pub fn reduce(expression: &Expression) -> Expression {
     };
 
     let table = truth_table(expression, target_index, &variables);
-
-    // There can be a group for all 0s, some 0s and 1s, and all 1s
-    let mut qm_groups = Vec::<Vec<QM_Item>>::with_capacity(variables.len() + 1);
-    for _ in 0..(variables.len() + 1) {
-        qm_groups.push(Vec::<QM_Item>::new());
-    }
+    let mut qm_steps = AllQMSteps::new(steps_len);
 
     for i in 0..table.len() {
         if !table[i][target_index] {
@@ -56,16 +113,57 @@ pub fn reduce(expression: &Expression) -> Expression {
             }
         }
 
-        qm_groups[true_count].push(QM_Item {
+        let mut covered_rows = HashSet::new();
+        covered_rows.insert(i);
+
+        qm_steps.steps[true_count].push(QMStepRow {
             row: row,
             one_count: true_count,
             used: false,
-            covered_rows: vec!(i),
+            covered_rows: covered_rows,
         })
     }
 
+    let mut final_qm_step_rows = Vec::<QMStepRow>::new();
+    let mut next_qm_step_rows = Vec::<QMStepRow>::new();
 
+    while !qm_steps.is_empty() {
+        for i in 0..qm_steps.steps.len() {
+            for x in 0..qm_steps.steps[i].len() {
+                if i < qm_steps.steps.len() - 1 {
+                    for y in 0..qm_steps.steps[i + 1].len() {
+                        let new_step = qm_steps.steps[i][x].reduce(&(qm_steps.steps[i + 1][y]));
+                        if new_step.is_none() {
+                            continue;
+                        }
 
+                        next_qm_step_rows.push(new_step.unwrap());
+                        qm_steps.steps[i][x].used = true;
+                        qm_steps.steps[i + 1][y].used = true;
+                    }
+                }
+            }
+
+            for x in (0..qm_steps.steps[i].len()).rev() {
+                if !qm_steps.steps[i][x].used {
+                    final_qm_step_rows.push(qm_steps.steps[i].remove(x));
+                }
+            }
+            qm_steps.steps[i].clear();
+        }
+
+        for step in next_qm_step_rows.iter_mut() {
+            step.used = false;
+        }
+        next_qm_step_rows.drain(0..)
+            .fold((), |_, step_row| {
+                qm_steps.steps[step_row.one_count].push(step_row);
+            }
+        );
+    }
+
+    final_qm_step_rows.dedup();
+    println!("{:?}", final_qm_step_rows);
     return Expression {
         operator: Operator::And,
         operands: vec!(),
