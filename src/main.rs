@@ -2,9 +2,11 @@ mod test_results;
 mod args_parse;
 mod expression;
 mod dependency_expression;
+mod quine_mccluskey;
 use test_results::*;
 use args_parse::*;
 use dependency_expression::*;
+use quine_mccluskey::*;
 use std::env;
 use std::process;
 
@@ -23,6 +25,10 @@ fn main() {
         .collect();
     let test_dependencies: Vec<TestDependency> = (0..tests.count)
         .map(|i| dependency_expression(&tests_slices, i))
+        .map(|test_dependency| TestDependency {
+            test_id: test_dependency.test_id,
+            dependency: reduce(&test_dependency.dependency)
+        })
         .collect();
     println!("{:?}", test_dependencies[0]);
     println!("Done!");
