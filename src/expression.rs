@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Operator {
     Or,
@@ -34,9 +36,28 @@ pub fn evaluate(expression: &Expression, results: &Vec<bool>) -> bool {
     }
 }
 
+pub fn unique_variables(expression: &Expression) -> HashSet<i32> {
+    expression.operands.iter()
+        .flat_map(|operand| match *operand {
+            Operand::Test(id) | Operand::InverseTest(id) => {
+                let mut set = HashSet::new();
+                set.insert(id);
+                set
+            },
+            Operand::Expression(ref e) | Operand::InverseExpression(ref e) => unique_variables(e),
+        }).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
+
+    fn set(vec: Vec<i32>) -> HashSet<i32> {
+        let mut set = HashSet::<i32>::new();
+        set.extend(vec);
+        set
+    }
 
     #[test]
     fn should_evaluate_and() {
@@ -116,5 +137,44 @@ mod tests {
         assert_eq!(evaluate(&expression, &vec!(true, false, true)), true);
         assert_eq!(evaluate(&expression, &vec!(true, true, false)), true);
         assert_eq!(evaluate(&expression, &vec!(true, true, true)), true);
+    }
+
+    #[test]
+    fn should_calculate_unique_variable_count_when_one_operator() {
+        let expression = Expression {
+            operator: Operator::And,
+            operands: vec!(
+                Operand::Test(0),
+                Operand::Test(1),
+                Operand::Test(5),
+                Operand::Test(0),
+                Operand::Test(6),
+                Operand::Test(6),
+            ),
+        };
+        assert_eq!(set(vec!(0, 1, 5, 6)), unique_variables(&expression));
+    }
+
+    #[test]
+    fn should_calculate_unique_variable_count_with_child_expressions() {
+        let expression = Expression {
+            operator: Operator::And,
+            operands: vec!(Operand::Expression(
+                Expression {
+                    operator: Operator::Or,
+                    operands: vec!(
+                        Operand::Test(0),
+                        Operand::Test(1),
+                    )
+                }), Operand::Expression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!(
+                        Operand::Test(1),
+                        Operand::Test(2),
+                    )
+                },
+            )),
+        };
+        assert_eq!(set(vec!(0, 1, 2)), unique_variables(&expression));
     }
 }
