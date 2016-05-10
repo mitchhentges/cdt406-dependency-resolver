@@ -24,7 +24,10 @@ fn main() {
         .iter()
         .map(|vec| &vec.executions[..])
         .collect();
+    //let test_dependencies: Vec<TestDependency> = (0..tests.count)
     let test_dependencies: Vec<(i32, Option<Expression>)> = (0..tests.count)
+        //.take(1)
+        //.skip(2)
         //.take(1)
         .map(|i| dependency_expression(&tests_slices, i))
         .map(|test_dependency| (test_dependency.test_id, reduce(&test_dependency.dependency)))

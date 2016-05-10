@@ -89,8 +89,12 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
         }
     };
 
-    println!("Inbound expression: {:?}", expression);
+    //println!("Inbound expression: {:?}", expression);
     let table = truth_table(expression, target_index, &variables);
+    //println!("Truth table:");
+    for row in &table {
+        //println!("{:?}", row);
+    }
     let mut qm_steps = AllQMSteps::new(steps_len);
 
     for i in 0..table.len() {
@@ -198,17 +202,13 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
         }
     }
 
-    //println!("{} {:?}", remaining_minterms.len(), remaining_minterms);
-    //println!("{} {:?}", minterms.len(), minterms);
-    //println!("{:?}", prime_implicants);
-    //println!("{:?}", min_implicants);
+    //println!("rem_mint {} {:?}", remaining_minterms.len(), remaining_minterms);
+    //println!("mint {} {:?}", minterms.len(), minterms);
+    //println!("prime_imp {:?}", prime_implicants);
+    //println!("min_imp {:?}", min_implicants);
 
     if remaining_minterms.len() != 0 {
         unimplemented!();
-    }
-
-    if min_implicants.is_empty() {
-        return None;
     }
 
     let mut root_expression = Expression {
@@ -218,6 +218,10 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
 
     let min_implicants_len = min_implicants.len();
     for implicant in min_implicants {
+        if implicant.row.len() == 0 {
+            continue;
+        }
+
         let mut operands: Vec<Operand> = implicant.row.iter()
             .enumerate()
             .map(|(i, state)| match *state {
@@ -230,9 +234,11 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
             .map(|option| option.unwrap())
             .collect();
 
+        operands.dedup();
+
         if min_implicants_len == 1 {
             return Some(Expression {
-                operator: Operator::And,
+                operator: Operator::Or,
                 operands: operands,
             });
         }
@@ -247,6 +253,11 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
         }
     }
 
+    if root_expression.operands.is_empty() {
+        return None;
+    }
+
+    root_expression.operands.dedup();
     Some(root_expression)
 }
 
@@ -326,13 +337,3 @@ pub fn truth_table(expression: &Expression, target_index: usize, variables: &Has
 
     reduce(&expression);
 }*/
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn should_derp() {
-        bork();
-    }
-}

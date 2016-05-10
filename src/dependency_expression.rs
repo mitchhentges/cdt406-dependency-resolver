@@ -13,40 +13,72 @@ pub fn dependency_expression(results: &[&[bool]], target_id: usize) -> TestDepen
     let mut pass_operands = Vec::<Operand>::with_capacity(executions); // maximum of all passes
     let mut fail_operands = Vec::<Operand>::with_capacity(executions); // or all fails
     for execution_index in 0..executions {
-        let passed = results[target_id][execution_index];
+        let this_passed = results[target_id][execution_index];
 
-        let mut execution_operands = Vec::<Operand>::with_capacity(test_count - 1); // Don't count target test
+        let mut other_passing_tests = Vec::<usize>::new();
+
         for other_id in 0..test_count {
             if other_id == target_id {
                 continue;
             }
 
-            let operand = match results[other_id][execution_index] {
-                false => Some(Operand::Test(other_id as i32)),
-                true => {
-                    if !passed {
-                        // Don't care about other passed tests if the target failed
-                        None
-                    } else {
-                        Some(Operand::InverseTest(other_id as i32))
-                    }
-                }
-            };
-
-            if operand.is_some() {
-                execution_operands.push(operand.unwrap());
+            if results[other_id][execution_index] {
+                other_passing_tests.push(other_id);
             }
         }
 
-        let execution_expression = Expression {
-            operator: Operator::And,
-            operands: execution_operands,
-        };
+        let mut execution_operands = Vec::<Operand>::new(); // Don't count target test
+        for other_id in 0..test_count {
+            if other_id == target_id {
+                continue;
+            }
 
-        if passed {
-            pass_operands.push(Operand::Expression(execution_expression));
+            let other_passed = results[other_id][execution_index];
+            if !this_passed {
+                if !other_passed { // If this one failed, only use others as operands if they failed, too
+                    execution_operands.push(Operand::Test(other_id as i32));
+                }
+                continue;
+            }
+
+            if other_passed {
+                continue; // Will use other passed tests when couping with other failed tests (see other_passing_tests)
+            }
+
+            if other_passing_tests.is_empty() {
+                execution_operands.push(Operand::Test(other_id as i32));
+                continue;
+            }
+
+            let mut operands: Vec<Operand> = other_passing_tests.iter()
+                .cloned()
+                .map(|other_passing_id| Operand::InverseTest(other_passing_id as i32))
+                .collect();
+            operands.push(Operand::Test(other_id as i32));
+
+            execution_operands.push(Operand::Expression(Expression {
+                operator: Operator::And,
+                operands: operands
+            }));
+        }
+
+        if execution_operands.is_empty() {
+            continue;
+        }
+
+        if this_passed {
+            pass_operands.extend(execution_operands);
         } else {
-            fail_operands.push(Operand::Expression(execution_expression));
+            let new_operand = if execution_operands.len() == 1 {
+                execution_operands.remove(0)
+            } else {
+                Operand::Expression(Expression {
+                    operator: Operator::And,
+                    operands: execution_operands,
+                })
+            };
+
+            fail_operands.push(new_operand);
         }
     }
 
@@ -74,8 +106,12 @@ mod tests {
     use expression::*;
 
     fn dependency(expression: Expression) -> TestDependency {
+        dependency_with_id(0, expression)
+    }
+
+    fn dependency_with_id(test_id: i32, expression: Expression) -> TestDependency {
         TestDependency {
-            test_id: 0,
+            test_id: test_id,
             dependency: expression
         }
     }
@@ -109,13 +145,10 @@ mod tests {
             operands: vec!(
                 Operand::Expression(Expression {
                     operator: Operator::Or,
-                    operands: vec!(Operand::Expression(Expression {
-                        operator: Operator::And,
-                        operands: vec!(Operand::Test(2))
-                    }), Operand::Expression(Expression {
-                        operator: Operator::And,
-                        operands: vec!(Operand::Test(1))
-                    }))
+                    operands: vec!(
+                        Operand::Test(2),
+                        Operand::Test(1)
+                    )
                 }),
                 Operand::InverseExpression(Expression {
                     operator: Operator::Or,
@@ -137,10 +170,7 @@ mod tests {
                 }),
                 Operand::InverseExpression(Expression {
                     operator: Operator::Or,
-                    operands: vec!(Operand::Expression(Expression {
-                        operator: Operator::And,
-                        operands: vec!(Operand::Test(1), Operand::Test(2))
-                    }))
+                    operands: vec!(Operand::Test(1), Operand::Test(2))
                 }),
             )
         }));
@@ -160,10 +190,38 @@ mod tests {
                     operator: Operator::Or,
                     operands: vec!(Operand::Expression(Expression {
                         operator: Operator::And,
-                        operands: vec!(Operand::Test(1), Operand::InverseTest(2))
+                        operands: vec!(Operand::InverseTest(2), Operand::Test(1))
                     }))
                 }),
             )
+        }));
+    }
+
+    #[test]
+    fn should_explode_for_pass() {
+        let slice: &[&[bool]] = &[&[true], &[false], &[true], &[false]];
+
+        assert_eq!(dependency_expression(slice, 0), dependency(Expression {
+            operator: Operator::And,
+            operands: vec!(Operand::Expression(Expression {
+                operator: Operator::Or,
+                operands: vec!(),
+            }), Operand::InverseExpression(Expression {
+                operator: Operator::Or,
+                operands: vec!(Operand::Expression(Expression {
+                    operator: Operator::And,
+                    operands: vec!(
+                        Operand::InverseTest(2),
+                        Operand::Test(1),
+                    )
+                }), Operand::Expression(Expression {
+                    operator: Operator::And,
+                    operands: vec!(
+                        Operand::InverseTest(2),
+                        Operand::Test(3),
+                    )
+                }))
+            }))
         }));
     }
 
@@ -187,10 +245,7 @@ mod tests {
                     }),Operand::Expression(Expression {
                         operator: Operator::And,
                         operands: vec!(Operand::Test(2), Operand::Test(3))
-                    }),Operand::Expression(Expression {
-                        operator: Operator::And,
-                        operands: vec!(Operand::Test(3))
-                    }),Operand::Expression(Expression {
+                    }),Operand::Test(3),Operand::Expression(Expression {
                         operator: Operator::And,
                         operands: vec!(Operand::Test(1), Operand::Test(2), Operand::Test(3))
                     }),)
@@ -201,8 +256,43 @@ mod tests {
                         operator: Operator::And,
                         operands: vec!(
                             Operand::InverseTest(1),
-                            Operand::Test(2),
                             Operand::InverseTest(3),
+                            Operand::Test(2),
+                        )
+                    }))
+                }),
+            )
+        }));
+
+        assert_eq!(dependency_expression(slice, 2), dependency_with_id(2, Expression {
+            operator: Operator::And,
+            operands: vec!(
+                Operand::Expression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!(Operand::Expression(Expression {
+                        operator: Operator::And,
+                        operands: vec!(Operand::Test(0), Operand::Test(1))
+                    }),Operand::Expression(Expression {
+                        operator: Operator::And,
+                        operands: vec!(Operand::Test(0), Operand::Test(3))
+                    }),Operand::Expression(Expression {
+                        operator: Operator::And,
+                        operands: vec!(Operand::Test(0), Operand::Test(1), Operand::Test(3))
+                    }),)
+                }),
+                Operand::InverseExpression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!(Operand::Expression(Expression {
+                        operator: Operator::And,
+                        operands: vec!(
+                            Operand::InverseTest(1),
+                            Operand::Test(0),
+                        )
+                    }), Operand::Expression(Expression {
+                        operator: Operator::And,
+                        operands: vec!(
+                            Operand::InverseTest(1),
+                            Operand::Test(3),
                         )
                     }))
                 }),
