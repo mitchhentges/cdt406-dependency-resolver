@@ -1,7 +1,8 @@
 use std::collections::HashSet;
+use std::iter::FromIterator;
 use expression::*;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 enum State {
     False,
     True,
@@ -113,6 +114,7 @@ pub fn reduce(expression: &Expression) -> Expression {
             }
         }
 
+        println!("Evaluated true for {}", i);
         let mut covered_rows = HashSet::new();
         covered_rows.insert(i);
 
@@ -163,6 +165,12 @@ pub fn reduce(expression: &Expression) -> Expression {
     }
 
     final_qm_step_rows.dedup();
+    let minterms: HashSet<usize> =  final_qm_step_rows.iter()
+        .flat_map(|qm_step_row| &qm_step_row.covered_rows)
+        .cloned()
+        .collect();
+
+    println!("{:?}", minterms);
     println!("{:?}", final_qm_step_rows);
     return Expression {
         operator: Operator::And,
@@ -193,4 +201,66 @@ pub fn truth_table(expression: &Expression, target_index: usize, variables: &Has
         table.push(case);
     }
     table
+}
+
+pub fn bork() {
+    let expression = Expression {
+        operator: Operator::And,
+        operands: vec!(
+                Operand::Expression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!(
+                        Operand::Test(1),
+                        Operand::Test(2),
+                    )
+                }),
+                Operand::Expression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!(
+                        Operand::Test(1),
+                        Operand::Test(3),
+                    )
+                }),
+                Operand::Expression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!(
+                        Operand::Test(2),
+                        Operand::Test(4),
+                    )
+                }),
+                Operand::Expression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!(
+                        Operand::Test(3),
+                        Operand::Test(5),
+                    )
+                }),
+                Operand::Expression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!(
+                        Operand::Test(4),
+                        Operand::Test(6),
+                    )
+                }),
+                Operand::Expression(Expression {
+                    operator: Operator::Or,
+                    operands: vec!(
+                        Operand::Test(5),
+                        Operand::Test(6),
+                    )
+                }),
+            )
+    };
+
+    reduce(&expression);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_derp() {
+        bork();
+    }
 }

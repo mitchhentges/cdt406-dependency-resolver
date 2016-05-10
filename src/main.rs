@@ -11,7 +11,7 @@ use std::env;
 use std::process;
 
 fn main() {
-    let parse_result = parse_cli_args(env::args().collect());
+    /*let parse_result = parse_cli_args(env::args().collect());
     if parse_result.is_err() {
         println!("Usage: ./test-dependencies input-filename output-filename");
         process::exit(-1);
@@ -31,6 +31,7 @@ fn main() {
             dependency: reduce(&test_dependency.dependency)
         })
         .collect();
-    println!("{:?}", test_dependencies[0]);
+    println!("{:?}", test_dependencies[0]);*/
+    bork();
     println!("Done!");
 }
