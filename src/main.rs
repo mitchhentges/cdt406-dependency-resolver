@@ -7,6 +7,7 @@ use test_results::*;
 use args_parse::*;
 use dependency_expression::*;
 use quine_mccluskey::*;
+use expression::*;
 use std::env;
 use std::process;
 
@@ -23,15 +24,15 @@ fn main() {
         .iter()
         .map(|vec| &vec.executions[..])
         .collect();
-    let test_dependencies: Vec<TestDependency> = (0..tests.count)
-        .take(1)
+    let test_dependencies: Vec<(i32, Option<Expression>)> = (0..tests.count)
+        //.take(1)
         .map(|i| dependency_expression(&tests_slices, i))
-        .map(|test_dependency| TestDependency {
-            test_id: test_dependency.test_id,
-            dependency: reduce(&test_dependency.dependency)
-        })
+        .map(|test_dependency| (test_dependency.test_id, reduce(&test_dependency.dependency)))
         .collect();
     println!("{:?}", test_dependencies[0]);
+    println!("{:?}", test_dependencies[1]);
+    println!("{:?}", test_dependencies[2]);
+    println!("{:?}", test_dependencies[3]);
     //bork();
     println!("Done!");
 }

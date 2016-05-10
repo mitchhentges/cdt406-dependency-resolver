@@ -78,7 +78,7 @@ impl QMStepRow {
 
 // Things got messy here. Operation "Get this project done" kicked into overdrive, and maintaining
 // a nice, testable structure became low-priority
-pub fn reduce(expression: &Expression) -> Expression {
+pub fn reduce(expression: &Expression) -> Option<Expression> {
     let variables = expression.variables();
     let steps_len = variables.len() + 1;
     let mut target_index = variables.len();
@@ -89,8 +89,7 @@ pub fn reduce(expression: &Expression) -> Expression {
         }
     };
 
-    println!("current var: {} variables: {:?}", target_index, variables);
-
+    println!("Inbound expression: {:?}", expression);
     let table = truth_table(expression, target_index, &variables);
     let mut qm_steps = AllQMSteps::new(steps_len);
 
@@ -105,6 +104,7 @@ pub fn reduce(expression: &Expression) -> Expression {
         for j in 0..table[i].len() {
             if j == target_index {
                 row.push(VariableState::TargetVariable);
+                continue;
             }
 
             row.push(match table[i][j] {
@@ -179,16 +179,16 @@ pub fn reduce(expression: &Expression) -> Expression {
         let mut index: usize = 0; // Guaranteed to be set in next for loop, if used
         for i in 0..prime_implicants.len() {
             if prime_implicants[i].covered_rows.contains(&minterm) {
-                println!("+ minterm {} contained in prime_implicant {:?}", minterm, prime_implicants[i]);
+                //println!("+ minterm {} contained in prime_implicant {:?}", minterm, prime_implicants[i]);
                 coverage += 1;
                 index = i;
             } else {
-                println!("- minterm {} !contained in prime_implicant {:?}", minterm, prime_implicants[i]);
+                //println!("- minterm {} !contained in prime_implicant {:?}", minterm, prime_implicants[i]);
             }
         }
 
         if coverage == 1 {
-            println!("Only covered once: (mt) (index) -> ({}) ({})", minterm, index);
+            //println!("Only covered once: (mt) (index) -> ({}) ({})", minterm, index);
             let implicant = prime_implicants.remove(index);
             implicant.covered_rows.iter()
                 .fold((), |_, term| {
@@ -201,10 +201,14 @@ pub fn reduce(expression: &Expression) -> Expression {
     //println!("{} {:?}", remaining_minterms.len(), remaining_minterms);
     //println!("{} {:?}", minterms.len(), minterms);
     //println!("{:?}", prime_implicants);
-    println!("{:?}", min_implicants);
+    //println!("{:?}", min_implicants);
 
     if remaining_minterms.len() != 0 {
         unimplemented!();
+    }
+
+    if min_implicants.is_empty() {
+        return None;
     }
 
     let mut root_expression = Expression {
@@ -212,18 +216,26 @@ pub fn reduce(expression: &Expression) -> Expression {
         operands: vec!()
     };
 
+    let min_implicants_len = min_implicants.len();
     for implicant in min_implicants {
         let mut operands: Vec<Operand> = implicant.row.iter()
             .enumerate()
             .map(|(i, state)| match *state {
                 VariableState::True => Some(Operand::Test(i as i32)),
-                VariableState::False => Some(Operand::InverseTest(i as i32)),
+                VariableState::False => None,
                 VariableState::Factored => None,
                 VariableState::TargetVariable => None,
             })
             .filter(|option| option.is_some())
             .map(|option| option.unwrap())
             .collect();
+
+        if min_implicants_len == 1 {
+            return Some(Expression {
+                operator: Operator::And,
+                operands: operands,
+            });
+        }
 
         if operands.len() == 1 {
             root_expression.operands.push(operands.remove(0));
@@ -235,7 +247,7 @@ pub fn reduce(expression: &Expression) -> Expression {
         }
     }
 
-    return root_expression;
+    Some(root_expression)
 }
 
 pub fn truth_table(expression: &Expression, target_index: usize, variables: &HashSet<i32>) -> Vec<Vec<bool>> {
