@@ -1,6 +1,6 @@
 extern crate rustc_serialize;
-use rustc_serialize::json;
-use rustc_serialize::json::{ToJson, Json};
+use rustc_serialize::json::ToJson;
+use std::collections::BTreeMap;
 
 mod test_results;
 mod args_parse;
@@ -30,18 +30,28 @@ fn main() {
         .iter()
         .map(|vec| &vec.executions[..])
         .collect();
-    let test_dependencies: Vec<(i32, Option<Expression>)> = (0..tests.count)
+    let test_dependencies: Vec<(String, Option<Expression>)> = (0..tests.count)
         .map(|i| dependency_expression(&tests_slices, i))
-        .map(|test_dependency| (test_dependency.test_id, reduce(&test_dependency.dependency)))
+        .map(|test_dependency| reduce(&test_dependency.dependency))
+        .zip(tests.results.iter().map(|test| test.name.clone()))
+        .map(|(str, exp)| (exp, str))
         .collect();
 
-    let mut f = File::create(&args.output_filename);
+    let mut map = BTreeMap::<String, Option<Expression>>::new();
+    for (name, expression) in test_dependencies {
+        map.insert(name, expression);
+    }
+
+    let f = File::create(&args.output_filename);
     if f.is_err() {
-        println!("Failed to write to {}", args.output_filename);
+        println!("Failed to create {}", args.output_filename);
         return;
     }
     let mut f = f.unwrap();
-    f.write_all(test_dependencies[0].to_json().to_string().as_bytes());
+    let result = f.write_all(map.to_json().to_string().as_bytes());
+    if result.is_err() {
+        println!("Failed to write to {}", args.output_filename);
+    }
 
     println!("Done!");
 }
