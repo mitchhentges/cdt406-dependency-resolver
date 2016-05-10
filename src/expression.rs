@@ -1,9 +1,21 @@
+extern crate rustc_serialize;
 use std::collections::HashSet;
+use rustc_serialize::json::{ToJson, Json};
+use std::collections::BTreeMap;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Operator {
     Or,
     And,
+}
+
+impl ToJson for Operator {
+    fn to_json(&self) -> Json {
+        match *self {
+            Operator::Or => Json::String("Or".to_owned()),
+            Operator::And => Json::String("And".to_owned()),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -14,10 +26,29 @@ pub enum Operand {
     InverseExpression(Expression),
 }
 
+impl ToJson for Operand {
+    fn to_json(&self) -> Json {
+        match self {
+            &Operand::Test(id) => Json::U64(id as u64),
+            &Operand::Expression(ref e) => e.to_json(),
+            _ => Json::Null,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Expression {
     pub operator: Operator,
     pub operands: Vec<Operand>,
+}
+
+impl ToJson for Expression {
+    fn to_json(&self) -> Json {
+        let mut map = BTreeMap::new();
+        map.insert("operator".to_owned(), self.operator.to_json());
+        map.insert("inputs".to_owned(), self.operands.to_json());
+        Json::Object(map)
+    }
 }
 
 impl Expression {

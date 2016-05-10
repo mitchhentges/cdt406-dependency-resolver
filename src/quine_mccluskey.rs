@@ -89,12 +89,7 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
         }
     };
 
-    //println!("Inbound expression: {:?}", expression);
     let table = truth_table(expression, target_index, &variables);
-    //println!("Truth table:");
-    for row in &table {
-        //println!("{:?}", row);
-    }
     let mut qm_steps = AllQMSteps::new(steps_len);
 
     for i in 0..table.len() {
@@ -183,16 +178,13 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
         let mut index: usize = 0; // Guaranteed to be set in next for loop, if used
         for i in 0..prime_implicants.len() {
             if prime_implicants[i].covered_rows.contains(&minterm) {
-                //println!("+ minterm {} contained in prime_implicant {:?}", minterm, prime_implicants[i]);
                 coverage += 1;
                 index = i;
             } else {
-                //println!("- minterm {} !contained in prime_implicant {:?}", minterm, prime_implicants[i]);
             }
         }
 
         if coverage == 1 {
-            //println!("Only covered once: (mt) (index) -> ({}) ({})", minterm, index);
             let implicant = prime_implicants.remove(index);
             implicant.covered_rows.iter()
                 .fold((), |_, term| {
@@ -201,12 +193,6 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
             min_implicants.push(implicant);
         }
     }
-
-    //println!("rem_mint {} {:?}", remaining_minterms.len(), remaining_minterms);
-    //println!("mint {} {:?}", minterms.len(), minterms);
-    //println!("prime_imp {:?}", prime_implicants);
-    //println!("min_imp {:?}", min_implicants);
-
     if remaining_minterms.len() != 0 {
         unimplemented!();
     }
@@ -285,55 +271,3 @@ pub fn truth_table(expression: &Expression, target_index: usize, variables: &Has
     }
     table
 }
-
-/*pub fn bork() {
-    let expression = Expression {
-        operator: Operator::And,
-        operands: vec!(
-                Operand::Expression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!(
-                        Operand::Test(1),
-                        Operand::Test(2),
-                    )
-                }),
-                Operand::Expression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!(
-                        Operand::Test(1),
-                        Operand::Test(3),
-                    )
-                }),
-                Operand::Expression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!(
-                        Operand::Test(2),
-                        Operand::Test(4),
-                    )
-                }),
-                Operand::Expression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!(
-                        Operand::Test(3),
-                        Operand::Test(5),
-                    )
-                }),
-                Operand::Expression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!(
-                        Operand::Test(4),
-                        Operand::Test(6),
-                    )
-                }),
-                Operand::Expression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!(
-                        Operand::Test(5),
-                        Operand::Test(6),
-                    )
-                }),
-            )
-    };
-
-    reduce(&expression);
-}*/

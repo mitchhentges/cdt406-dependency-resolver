@@ -1,3 +1,7 @@
+extern crate rustc_serialize;
+use rustc_serialize::json;
+use rustc_serialize::json::{ToJson, Json};
+
 mod test_results;
 mod args_parse;
 mod expression;
@@ -10,6 +14,8 @@ use quine_mccluskey::*;
 use expression::*;
 use std::env;
 use std::process;
+use std::fs::File;
+use std::io::Write;
 
 fn main() {
     let parse_result = parse_cli_args(env::args().collect());
@@ -24,18 +30,18 @@ fn main() {
         .iter()
         .map(|vec| &vec.executions[..])
         .collect();
-    //let test_dependencies: Vec<TestDependency> = (0..tests.count)
     let test_dependencies: Vec<(i32, Option<Expression>)> = (0..tests.count)
-        //.take(1)
-        //.skip(2)
-        //.take(1)
         .map(|i| dependency_expression(&tests_slices, i))
         .map(|test_dependency| (test_dependency.test_id, reduce(&test_dependency.dependency)))
         .collect();
-    println!("{:?}", test_dependencies[0]);
-    println!("{:?}", test_dependencies[1]);
-    println!("{:?}", test_dependencies[2]);
-    println!("{:?}", test_dependencies[3]);
-    //bork();
+
+    let mut f = File::create(&args.output_filename);
+    if f.is_err() {
+        println!("Failed to write to {}", args.output_filename);
+        return;
+    }
+    let mut f = f.unwrap();
+    f.write_all(test_dependencies[0].to_json().to_string().as_bytes());
+
     println!("Done!");
 }
