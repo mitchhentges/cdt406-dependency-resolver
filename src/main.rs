@@ -1,5 +1,6 @@
 extern crate rustc_serialize;
 use rustc_serialize::json::ToJson;
+use rustc_serialize::json::Json;
 use std::collections::BTreeMap;
 
 mod test_results;
@@ -37,9 +38,17 @@ fn main() {
         .map(|(str, exp)| (exp, str))
         .collect();
 
-    let mut map = BTreeMap::<String, Option<Expression>>::new();
-    for (name, expression) in test_dependencies {
-        map.insert(name, expression);
+    let mut map = BTreeMap::<String, Option<Json>>::new();
+    let names = test_dependencies.iter()
+        .map(|&(ref name, _)| name.clone())
+        .collect();
+
+    for (name, dep) in test_dependencies {
+        if dep.is_none() {
+            map.insert(name.clone(), Option::None);
+        } else {
+            map.insert(name.clone(), Option::Some(expression_json(&dep.unwrap(), &names)));
+        }
     }
 
     let f = File::create(&args.output_filename);

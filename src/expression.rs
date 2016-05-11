@@ -26,29 +26,24 @@ pub enum Operand {
     InverseExpression(Expression),
 }
 
-impl ToJson for Operand {
-    fn to_json(&self) -> Json {
-        match self {
-            &Operand::Test(id) => Json::U64(id as u64),
-            &Operand::Expression(ref e) => e.to_json(),
-            _ => Json::Null,
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct Expression {
     pub operator: Operator,
     pub operands: Vec<Operand>,
 }
 
-impl ToJson for Expression {
-    fn to_json(&self) -> Json {
-        let mut map = BTreeMap::new();
-        map.insert("operator".to_owned(), self.operator.to_json());
-        map.insert("inputs".to_owned(), self.operands.to_json());
-        Json::Object(map)
-    }
+pub fn expression_json(expression: &Expression, lookup: &Vec<String>) -> Json {
+    let mut map = BTreeMap::new();
+    map.insert("operator".to_owned(), expression.operator.to_json());
+    let operands: Vec<Json> = expression.operands.iter()
+        .map(|operand| match operand {
+            &Operand::Test(id) => Json::String(lookup[id as usize].clone()),
+            &Operand::Expression(ref e) => expression_json(e, lookup),
+            _ => Json::Null,
+        })
+        .collect();
+    map.insert("inputs".to_owned(), operands.to_json());
+    Json::Object(map)
 }
 
 impl Expression {
