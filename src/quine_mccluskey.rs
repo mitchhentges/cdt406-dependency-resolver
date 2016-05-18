@@ -139,7 +139,10 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
                             continue;
                         }
 
-                        next_qm_step_rows.push(new_step.unwrap());
+                        let unwrapped = new_step.unwrap();
+                        if !next_qm_step_rows.contains(&unwrapped) {
+                            next_qm_step_rows.push(unwrapped);
+                        }
                         qm_steps.steps[i][x].used = true;
                         qm_steps.steps[i + 1][y].used = true;
                     }
