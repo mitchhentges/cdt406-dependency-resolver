@@ -47,10 +47,10 @@ pub fn expression_json(expression: &Expression, lookup: &Vec<String>) -> Json {
 }
 
 impl Expression {
-    pub fn evaluate(&self, results: &Vec<bool>) -> bool {
+    pub fn evaluate(&self, results: &Vec<bool>, variable_to_index: &Vec<usize>) -> bool {
         match self.operator {
-            Operator::Or => self.operands.iter().any(|operand| evaluate_operand(operand, results)),
-            Operator::And => !(self.operands.iter().any(|operand| !evaluate_operand(operand, results))),
+            Operator::Or => self.operands.iter().any(|operand| evaluate_operand(operand, results, variable_to_index)),
+            Operator::And => self.operands.iter().all(|operand| evaluate_operand(operand, results, variable_to_index)),
         }
     }
 
@@ -67,12 +67,12 @@ impl Expression {
     }
 }
 
-fn evaluate_operand(operand: &Operand, results: &Vec<bool>) -> bool {
+fn evaluate_operand(operand: &Operand, results: &Vec<bool>, variable_to_index: &Vec<usize>) -> bool {
     match *operand {
-        Operand::Test(id) => results[id as usize],
-        Operand::InverseTest(id) => !results[id as usize],
-        Operand::Expression(ref expression) => expression.evaluate(results),
-        Operand::InverseExpression(ref expression) => !expression.evaluate(results),
+        Operand::Test(id) => results[variable_to_index[id as usize]],
+        Operand::InverseTest(id) => !results[variable_to_index[id as usize]],
+        Operand::Expression(ref expression) => expression.evaluate(results, variable_to_index),
+        Operand::InverseExpression(ref expression) => !expression.evaluate(results, variable_to_index),
     }
 }
 
@@ -87,16 +87,22 @@ mod tests {
         set
     }
 
+    fn evaluate(expression: &Expression, results: &Vec<bool>) {
+        let mut mapping = Vec::<i32>::with_capacity(results.len());
+        mapping.extend(0..results.len());
+        return expression.evaluate(results, &mapping);
+    }
+
     #[test]
     fn should_evaluate_and() {
         let expression = Expression {
             operator: Operator::And,
             operands: vec!(Operand::Test(0), Operand::Test(1))
         };
-        assert_eq!(expression.evaluate(&vec!(false, false)), false);
-        assert_eq!(expression.evaluate(&vec!(false, true)), false);
-        assert_eq!(expression.evaluate(&vec!(true, false)), false);
-        assert_eq!(expression.evaluate(&vec!(true, true)), true);
+        assert_eq!(evaluate(&expression, &vec!(false, false)), false);
+        assert_eq!(evaluate(&expression, &vec!(false, true)), false);
+        assert_eq!(evaluate(&expression, &vec!(true, false)), false);
+        assert_eq!(evaluate(&expression, &vec!(true, true)), true);
     }
 
     #[test]
@@ -105,10 +111,10 @@ mod tests {
             operator: Operator::Or,
             operands: vec!(Operand::Test(0), Operand::Test(1))
         };
-        assert_eq!(expression.evaluate(&vec!(false, false)), false);
-        assert_eq!(expression.evaluate(&vec!(false, true)), true);
-        assert_eq!(expression.evaluate(&vec!(true, false)), true);
-        assert_eq!(expression.evaluate(&vec!(true, true)), true);
+        assert_eq!(evaluate(&expression, &vec!(false, false)), false);
+        assert_eq!(evaluate(&expression, &vec!(false, true)), true);
+        assert_eq!(evaluate(&expression, &vec!(true, false)), true);
+        assert_eq!(evaluate(&expression, &vec!(true, true)), true);
     }
 
     #[test]
@@ -117,10 +123,10 @@ mod tests {
             operator: Operator::Or,
             operands: vec!(Operand::Test(0), Operand::InverseTest(1))
         };
-        assert_eq!(expression.evaluate(&vec!(false, false)), true);
-        assert_eq!(expression.evaluate(&vec!(false, true)), false);
-        assert_eq!(expression.evaluate(&vec!(true, false)), true);
-        assert_eq!(expression.evaluate(&vec!(true, true)), true);
+        assert_eq!(evaluate(&expression, &vec!(false, false)), true);
+        assert_eq!(evaluate(&expression, &vec!(false, true)), false);
+        assert_eq!(evaluate(&expression, &vec!(true, false)), true);
+        assert_eq!(evaluate(&expression, &vec!(true, true)), true);
     }
 
     #[test]
@@ -135,14 +141,14 @@ mod tests {
                 operands: vec!(Operand::Test(1), Operand::Test(2))
             }))
         };
-        assert_eq!(expression.evaluate(&vec!(false, false, false)), false);
-        assert_eq!(expression.evaluate(&vec!(false, false, true)), false);
-        assert_eq!(expression.evaluate(&vec!(false, true, false)), false);
-        assert_eq!(expression.evaluate(&vec!(false, true, true)), true);
-        assert_eq!(expression.evaluate(&vec!(true, false, false)), false);
-        assert_eq!(expression.evaluate(&vec!(true, false, true)), false);
-        assert_eq!(expression.evaluate(&vec!(true, true, false)), true);
-        assert_eq!(expression.evaluate(&vec!(true, true, true)), true);
+        assert_eq!(evaluate(&expression, &vec!(false, false, false)), false);
+        assert_eq!(evaluate(&expression, &vec!(false, false, true)), false);
+        assert_eq!(evaluate(&expression, &vec!(false, true, false)), false);
+        assert_eq!(evaluate(&expression, &vec!(false, true, true)), true);
+        assert_eq!(evaluate(&expression, &vec!(true, false, false)), false);
+        assert_eq!(evaluate(&expression, &vec!(true, false, true)), false);
+        assert_eq!(evaluate(&expression, &vec!(true, true, false)), true);
+        assert_eq!(evaluate(&expression, &vec!(true, true, true)), true);
     }
 
     #[test]
@@ -157,14 +163,14 @@ mod tests {
                 operands: vec!(Operand::Test(1), Operand::Test(2))
             }))
         };
-        assert_eq!(expression.evaluate(&vec!(false, false, false)), true);
-        assert_eq!(expression.evaluate(&vec!(false, false, true)), true);
-        assert_eq!(expression.evaluate(&vec!(false, true, false)), true);
-        assert_eq!(expression.evaluate(&vec!(false, true, true)), false);
-        assert_eq!(expression.evaluate(&vec!(true, false, false)), true);
-        assert_eq!(expression.evaluate(&vec!(true, false, true)), true);
-        assert_eq!(expression.evaluate(&vec!(true, true, false)), true);
-        assert_eq!(expression.evaluate(&vec!(true, true, true)), true);
+        assert_eq!(evaluate(&expression, &vec!(false, false, false)), true);
+        assert_eq!(evaluate(&expression, &vec!(false, false, true)), true);
+        assert_eq!(evaluate(&expression, &vec!(false, true, false)), true);
+        assert_eq!(evaluate(&expression, &vec!(false, true, true)), false);
+        assert_eq!(evaluate(&expression, &vec!(true, false, false)), true);
+        assert_eq!(evaluate(&expression, &vec!(true, false, true)), true);
+        assert_eq!(evaluate(&expression, &vec!(true, true, false)), true);
+        assert_eq!(evaluate(&expression, &vec!(true, true, true)), true);
     }
 
     #[test]

@@ -6,7 +6,6 @@ enum VariableState {
     False,
     True,
     Factored,
-    TargetVariable,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -15,10 +14,11 @@ struct AllQMSteps {
 }
 
 impl AllQMSteps {
-    fn new(steps_len: usize) -> AllQMSteps {
-        let mut steps = Vec::<Vec<QMStepRow>>::with_capacity(steps_len);
+    fn new(variable_count: usize) -> AllQMSteps {
+        // Each "step" is a permutation on the number of "true"s
+        let mut steps = Vec::<Vec<QMStepRow>>::with_capacity(variable_count + 1);
 
-        for _ in 0..steps_len {
+        for _ in 0..(variable_count + 1) {
             steps.push(Vec::<QMStepRow>::new())
         }
         AllQMSteps { steps: steps }
@@ -32,7 +32,7 @@ impl AllQMSteps {
 #[derive(Debug, PartialEq, Eq)]
 struct QMStepRow {
     row: Vec<VariableState>,
-    one_count: usize,
+    true_count: usize,
     used: bool,
     covered_rows: HashSet<usize>, //index of rows covered in original truth table
 }
@@ -60,16 +60,16 @@ impl QMStepRow {
         let mut covered_rows = self.covered_rows.clone();
         covered_rows.extend(other.covered_rows.clone());
 
-        let mut one_count = 0;
+        let mut true_count = 0;
         for i in &row {
             if i == &VariableState::True {
-                one_count += 1;
+                true_count += 1;
             }
         }
 
         Some(QMStepRow {
             row: row,
-            one_count: one_count,
+            true_count: true_count,
             used: false,
             covered_rows: covered_rows,
         })
@@ -80,32 +80,36 @@ impl QMStepRow {
 // a nice, testable structure became low-priority
 pub fn reduce(expression: &Expression) -> Option<Expression> {
     let variables = expression.variables();
-    let steps_len = variables.len() + 1;
-    let mut target_index = variables.len();
-    for i in 0..(variables.len() + 1) {
-        if !variables.contains(&(i as i32)) {
-            target_index = i;
-            break;
-        }
-    };
+    let mut max_variable: usize = 0;
 
-    let table = truth_table(expression, target_index, &variables);
-    let mut qm_steps = AllQMSteps::new(steps_len);
+    for variable in &variables {
+        let converted_variable = variable.clone() as usize;
+        if converted_variable > max_variable {
+            max_variable = converted_variable;
+        }
+    }
+    max_variable += 1;
+
+    let mut index_to_variable = Vec::<i32>::with_capacity(variables.len());
+    let mut variable_to_index: Vec<usize> = vec!(0; max_variable);
+
+    for (i, variable) in variables.iter().enumerate() {
+        index_to_variable.push(variable.clone());
+        variable_to_index[variable.clone() as usize] = i;
+    }
+
+    let table = truth_table(expression, variables.len() as u32, &variable_to_index);
+    let mut qm_steps = AllQMSteps::new(variables.len());
 
     for i in 0..table.len() {
-        if !table[i][target_index] {
+        if !table[i][variables.len()] { // If the result (last cell) is "false", ignore row
             continue;
         }
 
         let mut true_count = 0;
-        let mut row = Vec::<VariableState>::with_capacity(table[i].len());
+        let mut row = Vec::<VariableState>::with_capacity(variables.len());
 
-        for j in 0..table[i].len() {
-            if j == target_index {
-                row.push(VariableState::TargetVariable);
-                continue;
-            }
-
+        for j in 0..variables.len() {
             row.push(match table[i][j] {
                 true => VariableState::True,
                 false => VariableState::False,
@@ -120,7 +124,7 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
 
         qm_steps.steps[true_count].push(QMStepRow {
             row: row,
-            one_count: true_count,
+            true_count: true_count,
             used: false,
             covered_rows: covered_rows,
         })
@@ -162,7 +166,7 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
         }
         next_qm_step_rows.drain(0..)
             .fold((), |_, step_row| {
-                qm_steps.steps[step_row.one_count].push(step_row);
+                qm_steps.steps[step_row.true_count].push(step_row);
             }
         );
     }
@@ -196,7 +200,10 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
             min_implicants.push(implicant);
         }
     }
+
     if remaining_minterms.len() != 0 {
+        // Usually "Petrick's Method" would be used here, but I don't think we'll ever reach
+        // the situation where it's necessary
         unimplemented!();
     }
 
@@ -214,10 +221,9 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
         let mut operands: Vec<Operand> = implicant.row.iter()
             .enumerate()
             .map(|(i, state)| match *state {
-                VariableState::True => Some(Operand::Test(i as i32)),
+                VariableState::True => Some(Operand::Test(index_to_variable[i])),
                 VariableState::False => None,
                 VariableState::Factored => None,
-                VariableState::TargetVariable => None,
             })
             .filter(|option| option.is_some())
             .map(|option| option.unwrap())
@@ -250,26 +256,20 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
     Some(root_expression)
 }
 
-pub fn truth_table(expression: &Expression, target_index: usize, variables: &HashSet<i32>) -> Vec<Vec<bool>> {
-    let case_capacity = (2 as i32).pow((variables.len()) as u32) as usize;
-    let case_length = variables.len();
+pub fn truth_table(expression: &Expression, variable_count: u32, variable_to_index: &Vec<usize>) -> Vec<Vec<bool>> {
+    let case_length = (variable_count + 1) as usize; // One cell per variable, plus the result on the end
+    let case_count = (2 as i32).pow(variable_count as u32) as usize;
+    let mut table = Vec::<Vec<bool>>::with_capacity(case_count);
 
-    let mut table = Vec::<Vec<bool>>::with_capacity(case_capacity);
-    for case_index in 0..case_capacity {
-        let mut case = Vec::<bool>::with_capacity(case_length + 1); // Need extra slot for result
-        for _ in 0..(case_length + 1) {
-            case.push(false);
-        }
-        for test_index in 0..case_length {
-            let value = ((case_index >> test_index) & 1) == 1;
-            if test_index == target_index { // If this index is the result column
-                case[case_length] = value;
-            } else {
-                case[test_index] = value;
-            }
+    for case_index in 0..case_count {
+        let mut case = Vec::<bool>::with_capacity(case_length);
+
+        for test_index in 0..(case_length - 1) {
+            case.push(((case_index >> test_index) & 1) == 1);
         }
 
-        case[target_index] = expression.evaluate(&case);
+        let result = expression.evaluate(&case, variable_to_index);
+        case.push(result);
         table.push(case);
     }
     table
