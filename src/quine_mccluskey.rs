@@ -34,7 +34,7 @@ struct QMStepRow {
     row: Vec<VariableState>,
     true_count: usize,
     used: bool,
-    covered_rows: HashSet<usize>, //index of rows covered in original truth table
+    covered_rows: Vec<usize>, //index of rows covered in original truth table
 }
 
 impl QMStepRow {
@@ -59,6 +59,7 @@ impl QMStepRow {
         row[diff_column as usize] = VariableState::Factored;
         let mut covered_rows = self.covered_rows.clone();
         covered_rows.extend(other.covered_rows.clone());
+        covered_rows.dedup();
 
         let mut true_count = 0;
         for i in &row {
@@ -119,8 +120,8 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
             }
         }
 
-        let mut covered_rows = HashSet::new();
-        covered_rows.insert(i);
+        let mut covered_rows = Vec::new();
+        covered_rows.push(i);
 
         qm_steps.steps[true_count].push(QMStepRow {
             row: row,
@@ -187,7 +188,6 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
             if prime_implicants[i].covered_rows.contains(&minterm) {
                 coverage += 1;
                 index = i;
-            } else {
             }
         }
 
