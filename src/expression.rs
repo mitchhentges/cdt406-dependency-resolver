@@ -88,7 +88,7 @@ mod tests {
     }
 
     fn evaluate(expression: &Expression, results: &Vec<bool>) {
-        let mut mapping = Vec::<i32>::with_capacity(results.len());
+        let mut mapping = Vec::<usize>::with_capacity(results.len());
         mapping.extend(0..results.len());
         return expression.evaluate(results, &mapping);
     }
