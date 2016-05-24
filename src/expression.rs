@@ -87,10 +87,10 @@ mod tests {
         set
     }
 
-    fn evaluate(expression: &Expression, results: &Vec<bool>) {
+    fn evaluate(expression: &Expression, results: &Vec<bool>) -> bool {
         let mut mapping = Vec::<usize>::with_capacity(results.len());
         mapping.extend(0..results.len());
-        expression.evaluate(results, &mapping);
+        expression.evaluate(results, &mapping)
     }
 
     #[test]
