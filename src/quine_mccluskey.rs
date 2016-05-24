@@ -29,12 +29,22 @@ impl AllQMSteps {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Eq)]
 struct QMStepRow {
     row: Vec<VariableState>,
     true_count: usize,
     used: bool,
     covered_rows: Vec<usize>, //index of rows covered in original truth table
+}
+
+impl PartialEq for QMStepRow {
+    fn eq(&self, other: &QMStepRow) -> bool {
+        return self.row.eq(&other.row);
+    }
+
+    fn ne(&self, other: &QMStepRow) -> bool {
+        return self.row.ne(&other.row);
+    }
 }
 
 impl QMStepRow {
@@ -137,20 +147,22 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
     while !qm_steps.is_empty() {
         for i in 0..qm_steps.steps.len() {
             for x in 0..qm_steps.steps[i].len() {
-                if i < qm_steps.steps.len() - 1 {
-                    for y in 0..qm_steps.steps[i + 1].len() {
-                        let new_step = qm_steps.steps[i][x].reduce(&(qm_steps.steps[i + 1][y]));
-                        if new_step.is_none() {
-                            continue;
-                        }
+                if i == qm_steps.steps.len() - 1 { // Don't check for all-true row + all-true-plus-one row
+                    continue;
+                }
 
-                        let unwrapped = new_step.unwrap();
-                        if !next_qm_step_rows.contains(&unwrapped) {
-                            next_qm_step_rows.push(unwrapped);
-                        }
-                        qm_steps.steps[i][x].used = true;
-                        qm_steps.steps[i + 1][y].used = true;
+                for y in 0..qm_steps.steps[i + 1].len() {
+                    let new_step = qm_steps.steps[i][x].reduce(&(qm_steps.steps[i + 1][y]));
+                    if new_step.is_none() {
+                        continue;
                     }
+
+                    let unwrapped = new_step.unwrap();
+                    if !next_qm_step_rows.contains(&unwrapped) {
+                        next_qm_step_rows.push(unwrapped);
+                    }
+                    qm_steps.steps[i][x].used = true;
+                    qm_steps.steps[i + 1][y].used = true;
                 }
             }
 
