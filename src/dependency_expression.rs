@@ -42,7 +42,7 @@ pub fn dependency_expression(results: &[&[bool]], target_id: usize) -> TestDepen
             }
 
             if other_passed {
-                continue; // Will use other passed tests when couping with other failed tests (see other_passing_tests)
+                continue; // Will use other passed tests when coupling with other failed tests (see other_passing_tests)
             }
 
             if other_passing_tests.is_empty() {

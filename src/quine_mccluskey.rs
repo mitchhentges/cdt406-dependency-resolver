@@ -90,7 +90,8 @@ impl QMStepRow {
 // Things got messy here. Operation "Get this project done" kicked into overdrive, and maintaining
 // a nice, testable structure became low-priority
 pub fn reduce(expression: &Expression) -> Option<Expression> {
-    let variables = expression.variables();
+    let mut variables = expression.variables();
+    variables.sort(); // To maintain consitency with Turaco (for debugging)
     let mut max_variable: usize = 0;
 
     for variable in &variables {
@@ -245,7 +246,7 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
 
         if min_implicants_len == 1 {
             return Some(Expression {
-                operator: Operator::Or,
+                operator: Operator::And,
                 operands: operands,
             });
         }

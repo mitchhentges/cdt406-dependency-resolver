@@ -54,16 +54,25 @@ impl Expression {
         }
     }
 
-    pub fn variables(&self) -> HashSet<i32> {
-        self.operands.iter()
-            .flat_map(|operand| match *operand {
-                Operand::Test(id) | Operand::InverseTest(id) => {
-                    let mut set = HashSet::new();
-                    set.insert(id);
-                    set
+    pub fn variables(&self) -> Vec<i32> {
+        let mut vars = Vec::<i32>::new();
+        for operand in &self.operands {
+            match operand {
+                &Operand::Test(id) | &Operand::InverseTest(id) => {
+                    if !vars.contains(&id) {
+                        vars.push(id);
+                    }
                 },
-                Operand::Expression(ref e) | Operand::InverseExpression(ref e) => e.variables(),
-            }).collect()
+                &Operand::Expression(ref e) | &Operand::InverseExpression(ref e) => {
+                    for id in e.variables() {
+                        if !vars.contains(&id) {
+                            vars.push(id)
+                        }
+                    }
+                }
+            }
+        }
+        vars
     }
 }
 
