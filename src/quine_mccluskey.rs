@@ -244,7 +244,7 @@ pub fn reduce(expression: &Expression) -> Option<Expression> {
 
         operands.dedup();
 
-        if min_implicants_len == 1 {
+        if min_implicants_len == 1 && operands.len() != 1 {
             return Some(Expression {
                 operator: Operator::And,
                 operands: operands,
