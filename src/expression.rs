@@ -1,5 +1,4 @@
 extern crate rustc_serialize;
-use std::collections::HashSet;
 use rustc_serialize::json::{ToJson, Json};
 use std::collections::BTreeMap;
 
