@@ -87,13 +87,6 @@ fn evaluate_operand(operand: &Operand, results: &Vec<bool>, variable_to_index: &
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
-
-    fn set(vec: Vec<i32>) -> HashSet<i32> {
-        let mut set = HashSet::<i32>::new();
-        set.extend(vec);
-        set
-    }
 
     fn evaluate(expression: &Expression, results: &Vec<bool>) -> bool {
         let mut mapping = Vec::<usize>::with_capacity(results.len());
@@ -194,7 +187,7 @@ mod tests {
                 Operand::Test(6),
             ),
         };
-        assert_eq!(set(vec!(0, 1, 5, 6)), expression.variables());
+        assert_eq!(vec!(0, 1, 5, 6), expression.variables());
     }
 
     #[test]
@@ -217,6 +210,6 @@ mod tests {
                 },
             )),
         };
-        assert_eq!(set(vec!(0, 1, 2)), expression.variables());
+        assert_eq!(vec!(0, 1, 2), expression.variables());
     }
 }
