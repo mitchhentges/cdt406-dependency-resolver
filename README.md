@@ -21,9 +21,9 @@ The test dependency information is output to a single `JSON` file.
 ### Tests
 
 Each top-level `key` is a test identifier. The `value` for these keys is the minimum requirements to make the
-current test fail. The `value` is either an [`operator`](#operators), or `null`.
+current test pass. The `value` is either an [`operator`](#operators), or `null`.
 
-If a test isn't dependent on anything - it will only fail if the focused component fails - then its value will be
+If a test isn't dependent on anything - it will only fail if the component-under-test fails - then its value will be
 `null`. For example, perhaps testing "Paint" and "Horn" aren't dependent on any other component tests.
 ```
 {
