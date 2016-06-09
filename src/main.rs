@@ -31,9 +31,10 @@ fn main() {
         .iter()
         .map(|vec| &vec.executions[..])
         .collect();
+
     let test_dependencies: Vec<(String, Option<Expression>)> = (0..tests.count)
         .map(|i| dependency_expression(&tests_slices, i))
-        .map(|test_dependency| reduce(&test_dependency.dependency))
+        .map(|test_dependency| test_dependency.map_or(None, |test_dependency| reduce(&test_dependency)))
         .zip(tests.results.iter().map(|test| test.name.clone()))
         .map(|(str, exp)| (exp, str))
         .collect();
