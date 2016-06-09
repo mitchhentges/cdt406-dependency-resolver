@@ -20,9 +20,7 @@ impl ToJson for Operator {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Operand {
     Test(i32),
-    InverseTest(i32),
     Expression(Expression),
-    InverseExpression(Expression),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -38,7 +36,6 @@ pub fn expression_json(expression: &Expression, lookup: &Vec<String>) -> Json {
         .map(|operand| match operand {
             &Operand::Test(id) => Json::String(lookup[id as usize].clone()),
             &Operand::Expression(ref e) => expression_json(e, lookup),
-            _ => Json::Null,
         })
         .collect();
     map.insert("inputs".to_owned(), operands.to_json());
@@ -57,12 +54,12 @@ impl Expression {
         let mut vars = Vec::<i32>::new();
         for operand in &self.operands {
             match operand {
-                &Operand::Test(id) | &Operand::InverseTest(id) => {
+                &Operand::Test(id) => {
                     if !vars.contains(&id) {
                         vars.push(id);
                     }
                 },
-                &Operand::Expression(ref e) | &Operand::InverseExpression(ref e) => {
+                &Operand::Expression(ref e) => {
                     for id in e.variables() {
                         if !vars.contains(&id) {
                             vars.push(id)
@@ -78,9 +75,7 @@ impl Expression {
 fn evaluate_operand(operand: &Operand, results: &Vec<bool>, variable_to_index: &Vec<usize>) -> bool {
     match *operand {
         Operand::Test(id) => results[variable_to_index[id as usize]],
-        Operand::InverseTest(id) => !results[variable_to_index[id as usize]],
         Operand::Expression(ref expression) => expression.evaluate(results, variable_to_index),
-        Operand::InverseExpression(ref expression) => !expression.evaluate(results, variable_to_index),
     }
 }
 
@@ -119,18 +114,6 @@ mod tests {
     }
 
     #[test]
-    fn should_evaluate_inverse_test() {
-        let expression = Expression {
-            operator: Operator::Or,
-            operands: vec!(Operand::Test(0), Operand::InverseTest(1))
-        };
-        assert_eq!(evaluate(&expression, &vec!(false, false)), true);
-        assert_eq!(evaluate(&expression, &vec!(false, true)), false);
-        assert_eq!(evaluate(&expression, &vec!(true, false)), true);
-        assert_eq!(evaluate(&expression, &vec!(true, true)), true);
-    }
-
-    #[test]
     fn should_evaluate_sub_expression() {
         let expression = Expression {
             operator: Operator::Or,
@@ -148,28 +131,6 @@ mod tests {
         assert_eq!(evaluate(&expression, &vec!(false, true, true)), true);
         assert_eq!(evaluate(&expression, &vec!(true, false, false)), false);
         assert_eq!(evaluate(&expression, &vec!(true, false, true)), false);
-        assert_eq!(evaluate(&expression, &vec!(true, true, false)), true);
-        assert_eq!(evaluate(&expression, &vec!(true, true, true)), true);
-    }
-
-    #[test]
-    fn should_evaluate_inverse_expression() {
-        let expression = Expression {
-            operator: Operator::Or,
-            operands: vec!(Operand::Expression(Expression {
-                operator: Operator::And,
-                operands: vec!(Operand::Test(0), Operand::Test(1))
-            }), Operand::InverseExpression(Expression {
-                operator: Operator::And,
-                operands: vec!(Operand::Test(1), Operand::Test(2))
-            }))
-        };
-        assert_eq!(evaluate(&expression, &vec!(false, false, false)), true);
-        assert_eq!(evaluate(&expression, &vec!(false, false, true)), true);
-        assert_eq!(evaluate(&expression, &vec!(false, true, false)), true);
-        assert_eq!(evaluate(&expression, &vec!(false, true, true)), false);
-        assert_eq!(evaluate(&expression, &vec!(true, false, false)), true);
-        assert_eq!(evaluate(&expression, &vec!(true, false, true)), true);
         assert_eq!(evaluate(&expression, &vec!(true, true, false)), true);
         assert_eq!(evaluate(&expression, &vec!(true, true, true)), true);
     }
