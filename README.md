@@ -1,6 +1,13 @@
-# Dependency Resolver
+# Dependency Resolver [![Build Status](https://travis-ci.org/mitchhentges/cdt406-dependency-resolver.svg?branch=master)](https://travis-ci.org/mitchhentges/cdt406-dependency-resolver/)
 
-[![Build Status](https://travis-ci.org/mitchhentges/cdt406-dependency-resolver.svg?branch=master)](https://travis-ci.org/mitchhentges/cdt406-dependency-resolver/)
+When running tests for a system, there's potential for tests to overlap. In fact, there might be "test dependencies": a
+test may "require" others to pass for itself to pass. For example, a car's "engine" test may depend on the "gas lines"
+test passing. If "gas lines" fails, then the "engine" test would be "known" to fail. Conversely, if "gas lines" passes,
+then the "engine" test will only fail if the engine itself is not working.
+
+This software will investigate a history of known test executions, and will realize patterns in the test results. For
+each test, it will determine its dependency on other tests, and encode the dependency relationship in a JSON format.
+Logically, the more test results that are provided, the more accurate the resolved dependencies will be.
 
 ## Building
 
@@ -14,30 +21,10 @@ The test dependency information is output to a single `JSON` file.
 ### Tests
 
 Each top-level `key` is a test identifier. The `value` for these keys is the minimum requirements to make the
-current test fail. The `value` is either another test's ID, an [`operator`](#operators), or `null`.
+current test fail. The `value` is either an [`operator`](#operators), or `null`.
 
-For example, if a test depends on another test, that means that if that test fails, then the current test will
-fail as well. So, the `value` is the ID of the test that is dependent on.
-
-```
-{
- "Brake Check": "Axle Check",
- "Coolant Pressure": "Tubing"
-}
-```
-
-If a test depends on the results of another test, an [`operator`](#operators) is used as a value:
-```
-{
- "Engine": {
-   "operator": "and",
-   "inputs": [...]
- }
-}
-```
-
-Finally, if a test does not depend on another, `null` will be the value:
-
+If a test isn't dependent on anything - it will only fail if the focused component fails - then its value will be
+`null`. For example, perhaps testing "Paint" and "Horn" aren't dependent on any other component tests.
 ```
 {
  "Paint": null,
@@ -45,26 +32,38 @@ Finally, if a test does not depend on another, `null` will be the value:
 }
 ```
 
-### Operators
+For the sake of consistency, if a test is dependent on 1 or more other tests, its value is always an "operator". There
+are two keys: `operator` and `inputs`:
 
-For some tests, the minimum requirement for failure is a _combination_ of other tests failing. In such a case, an
-"Operator" is used to tie the test results together.
-There are two types of operators: `and`, and `or`. The `type` is specified as the `operator`.
-For each test to be used in the operator, the test ID is put in the `inputs` field.
-
-For example, to represent the combination of `()(Gas Tube | Fuel Pressure) & Pistons)`:
 ```
 {
- "operator": "and",
- "inputs": [
-  "Pistons",
-  {
-   "operator": "or",
-   "inputs": [
-    "Gas Tube",
-    "Fuel Pressure"
-   ]
-  }
+ "Test": {
+   "operator": "and",
+   "inputs": [...]
+ }
+}
+```
+
+There are two types of operators: `and`, and `or`, which is set to the value of `type`. The `inputs` list contains
+both individual tests that are depended on, and other "operators".
+
+For example, "Engine" depends on `((Electric Starter | Manual Starter) & Pistons)`. So, if "Pistons" _and_ either
+"Electric Starter" or "Manual Starter" are working, then the "Engine" can be tested. If either "Pistons" or
+both "Electric Starter" and "Manual Starter" fail, then the "Engine" will fail due to a dependency.
+```
+{
+ "Engine": {
+  "operator": "and",
+  "inputs": [
+   "Pistons",
+   {
+    "operator": "or",
+    "inputs": [
+     "Electric Starter",
+     "Manual Starter"
+    ]
+   }
+ }
 }
 ```
 
@@ -72,16 +71,18 @@ So, there's two different fields: `operator`, and `inputs`.
 `operator` always has either the value `and` or `or`.
 `inputs` always has a non-empty array of Operators and/or test IDs.
 
+If there's only one `input` for a dependency, then the `operator` is `or`.
+
 ## Output Example
 
 From the following test execution results, the produced dependency information `JSON` is below:
 
 Test ID            |Execution 1|Execution 2|Execution 3|Execution 4|Execution 5
  ----------------- | --------- | --------- | --------- | --------- | ---------
-A                  |FAILED     |FAILED     |PASSED     |FAILED     |FAILED
-B                  |FAILED     |PASSED     |PASSED     |PASSED     |FAILED
-C                  |FAILED     |FAILED     |FAILED     |PASSED     |FAILED
-D                  |PASSED     |FAILED     |PASSED     |FAILED     |FAILED
+A                  |PASSED     |PASSED     |FAILED     |PASSED     |PASSED
+B                  |PASSED     |FAILED     |FAILED     |FAILED     |PASSED
+C                  |PASSED     |PASSED     |PASSED     |FAILED     |PASSED
+D                  |FAILED     |PASSED     |FAILED     |PASSED     |PASSED
 
 ```
 {
@@ -98,14 +99,19 @@ D                  |PASSED     |FAILED     |PASSED     |FAILED     |FAILED
    }
   ]
  },
- "B": null,
- "C": {
+ "B": {
   "operator": "and",
   "inputs": [
    "A",
-   "B",
+   "C"
   ]
  },
- "D": null
+ "C": null,
+ "D": {
+  "operator": "or",
+  "inputs": [
+   "A"
+  ]
+ }
 }
 ```
