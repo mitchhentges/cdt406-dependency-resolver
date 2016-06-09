@@ -1,12 +1,6 @@
 use expression::*;
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct TestDependency {
-    pub test_id: i32,
-    pub dependency: Expression,
-}
-
-pub fn dependency_expression(results: &[&[bool]], target_id: usize) -> TestDependency {
+pub fn dependency_expression(results: &[&[bool]], target_id: usize) -> Option<Expression> {
     let test_count = results.len();
     let executions = results[0].len();
 
@@ -105,198 +99,54 @@ mod tests {
     use super::*;
     use expression::*;
 
-    fn dependency(expression: Expression) -> TestDependency {
-        dependency_with_id(0, expression)
-    }
-
-    fn dependency_with_id(test_id: i32, expression: Expression) -> TestDependency {
-        TestDependency {
-            test_id: test_id,
-            dependency: expression
-        }
-    }
-
     #[test]
-    fn should_and_operator_simultaneously_failing() {
-        let slice: &[&[bool]] = &[&[false], &[false], &[false]];
-        assert_eq!(dependency_expression(slice, 0), dependency(Expression {
+    fn should_and_operator_simultaneously_passing() {
+        let slice: &[&[bool]] = &[&[true], &[true], &[true]];
+        assert_eq!(dependency_expression(slice, 0), Some(Expression {
             operator: Operator::And,
-            operands: vec!(
-                Operand::Expression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!(Operand::Expression(Expression {
-                        operator: Operator::And,
-                        operands: vec!(Operand::Test(1), Operand::Test(2))
-                    }))
-                }),
-                Operand::InverseExpression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!()
-                }),
-            )
+            operands: vec!(Operand::Test(1), Operand::Test(2))
         }));
     }
 
     #[test]
-    fn should_or_operator_separately_failing() {
-        let slice: &[&[bool]] = &[&[false, false], &[true, false], &[false, true]];
-        assert_eq!(dependency_expression(slice, 0), dependency(Expression {
-            operator: Operator::And,
-            operands: vec!(
-                Operand::Expression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!(
-                        Operand::Test(2),
-                        Operand::Test(1)
-                    )
-                }),
-                Operand::InverseExpression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!()
-                }),
-            )
-        }));
-    }
-
-    #[test]
-    fn should_not_operator_with_other_test_state_for_target_pass() {
-        let slice: &[&[bool]] = &[&[true], &[false], &[false]];
-        assert_eq!(dependency_expression(slice, 0), dependency(Expression {
-            operator: Operator::And,
-            operands: vec!(
-                Operand::Expression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!()
-                }),
-                Operand::InverseExpression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!(Operand::Test(1), Operand::Test(2))
-                }),
-            )
-        }));
-    }
-
-    #[test]
-    fn should_invert_other_passing_tests_when_target_fails() {
-        let slice: &[&[bool]] = &[&[true], &[false], &[true]];
-        assert_eq!(dependency_expression(slice, 0), dependency(Expression {
-            operator: Operator::And,
-            operands: vec!(
-                Operand::Expression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!()
-                }),
-                Operand::InverseExpression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!(Operand::Expression(Expression {
-                        operator: Operator::And,
-                        operands: vec!(Operand::InverseTest(2), Operand::Test(1))
-                    }))
-                }),
-            )
-        }));
-    }
-
-    #[test]
-    fn should_explode_for_pass() {
-        let slice: &[&[bool]] = &[&[true], &[false], &[true], &[false]];
-
-        assert_eq!(dependency_expression(slice, 0), dependency(Expression {
-            operator: Operator::And,
-            operands: vec!(Operand::Expression(Expression {
-                operator: Operator::Or,
-                operands: vec!(),
-            }), Operand::InverseExpression(Expression {
-                operator: Operator::Or,
-                operands: vec!(Operand::Expression(Expression {
-                    operator: Operator::And,
-                    operands: vec!(
-                        Operand::InverseTest(2),
-                        Operand::Test(1),
-                    )
-                }), Operand::Expression(Expression {
-                    operator: Operator::And,
-                    operands: vec!(
-                        Operand::InverseTest(2),
-                        Operand::Test(3),
-                    )
-                }))
-            }))
+    fn should_or_operator_separately_passing() {
+        let slice: &[&[bool]] = &[&[true, true], &[true, false], &[false, true]];
+        assert_eq!(dependency_expression(slice, 0), Some(Expression {
+            operator: Operator::Or,
+            operands: vec!(Operand::Test(1), Operand::Test(2))
         }));
     }
 
     #[test]
     fn should_work_with_more_complex_example() {
         let slice: &[&[bool]] = &[
-            &[false, false, true, false, false],
-            &[false, true, true, true, false],
-            &[false, false, false, true, false],
-            &[true, false, true, false, false]
+            &[true, true, false, true, true],
+            &[true, false, false, false, true],
+            &[true, true, true, false, true],
+            &[false, true, false, true, true]
         ];
 
-        assert_eq!(dependency_expression(slice, 0), dependency(Expression {
-            operator: Operator::And,
+        assert_eq!(dependency_expression(slice, 0), Some(Expression {
+            operator: Operator::Or,
             operands: vec!(
+                Operand::Test(3),
                 Operand::Expression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!(Operand::Expression(Expression {
-                        operator: Operator::And,
-                        operands: vec!(Operand::Test(1), Operand::Test(2))
-                    }),Operand::Expression(Expression {
-                        operator: Operator::And,
-                        operands: vec!(Operand::Test(2), Operand::Test(3))
-                    }),Operand::Test(3),Operand::Expression(Expression {
-                        operator: Operator::And,
-                        operands: vec!(Operand::Test(1), Operand::Test(2), Operand::Test(3))
-                    }),)
-                }),
-                Operand::InverseExpression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!(Operand::Expression(Expression {
-                        operator: Operator::And,
-                        operands: vec!(
-                            Operand::InverseTest(1),
-                            Operand::InverseTest(3),
-                            Operand::Test(2),
-                        )
-                    }))
-                }),
+                    operator: Operator::And,
+                    operands: vec!(Operand::Test(1), Operand::Test(2))
+                })
             )
         }));
 
-        assert_eq!(dependency_expression(slice, 2), dependency_with_id(2, Expression {
+        assert_eq!(dependency_expression(slice, 1), Some(Expression {
             operator: Operator::And,
-            operands: vec!(
-                Operand::Expression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!(Operand::Expression(Expression {
-                        operator: Operator::And,
-                        operands: vec!(Operand::Test(0), Operand::Test(1))
-                    }),Operand::Expression(Expression {
-                        operator: Operator::And,
-                        operands: vec!(Operand::Test(0), Operand::Test(3))
-                    }),Operand::Expression(Expression {
-                        operator: Operator::And,
-                        operands: vec!(Operand::Test(0), Operand::Test(1), Operand::Test(3))
-                    }),)
-                }),
-                Operand::InverseExpression(Expression {
-                    operator: Operator::Or,
-                    operands: vec!(Operand::Expression(Expression {
-                        operator: Operator::And,
-                        operands: vec!(
-                            Operand::InverseTest(1),
-                            Operand::Test(0),
-                        )
-                    }), Operand::Expression(Expression {
-                        operator: Operator::And,
-                        operands: vec!(
-                            Operand::InverseTest(1),
-                            Operand::Test(3),
-                        )
-                    }))
-                }),
-            )
+            operands: vec!(Operand::Test(0), Operand::Test(2))
+        }));
+
+        assert_eq!(dependency_expression(slice, 2), None);
+
+        assert_eq!(dependency_expression(slice, 3), Some(Expression {
+            operator: Operator::Or,
+            operands: vec!(Operand::Test(3))
         }));
     }
 }
